@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Cognitive Load & Cognitive Debt Detector – Full Prototype</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: #e5e7eb;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 2fr 1.2fr;
+      gap: 20px;
+    }
+    .card {
+      background: #111827;
+      border-radius: 12px;
+      padding: 16px 20px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+      border: 1px solid #1f2937;
+    }
+    .title {
+      font-size: 22px;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+    .subtitle {
+      font-size: 13px;
+      color: #9ca3af;
+      margin-bottom: 12px;
+    }
+    textarea {
+      width: 100%;
+      height: 160px;
+      resize: none;
+      border-radius: 8px;
+      border: 1px solid #374151;
+      background: #030712;
+      color: #e5e7eb;
+      padding: 10px;
+      font-size: 14px;
+      outline: none;
+    }
+    textarea:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 1px #3b82f6;
+    }
+    button {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 999px;
+      padding: 8px 14px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      margin-right: 8px;
+      margin-bottom: 6px;
+    }
+    button.secondary {
+      background: #111827;
+      border: 1px solid #4b5563;
+      color: #e5e7eb;
+    }
+    button:active {
+      transform: translateY(1px);
+    }
+    .scroll-box {
+      height: 180px;
+      overflow-y: auto;
+      margin-top: 8px;
+      border-radius: 8px;
+      border: 1px solid #374151;
+      background: #020617;
+      padding: 8px;
+      font-size: 13px;
+    }
+    .metric-row {
+      display: flex;
+      justify-content: space-between;
+      margin: 4px 0;
+      font-size: 13px;
+    }
+    .metric-label {
+      color: #9ca3af;
+    }
+    .metric-value {
+      font-weight: 600;
+    }
+    .score-display {
+      font-size: 50px;
+      font-weight: 800;
+      margin: 0;
+    }
+    .small-score {
+      font-size: 12px;
+      color: #9ca3af;
+      margin-top: 2px;
+    }
+    .state-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-top: 4px;
+    }
+    .state-calm {
+      background: rgba(34,197,94,0.15);
+      color: #4ade80;
+    }
+    .state-moderate {
+      background: rgba(245,158,11,0.15);
+      color: #fbbf24;
+    }
+    .state-high {
+      background: rgba(248,113,113,0.15);
+      color: #fca5a5;
+    }
+    .bar {
+      width: 100%;
+      height: 14px;
+      border-radius: 999px;
+      background: #020617;
+      margin-top: 12px;
+      overflow: hidden;
+      border: 1px solid #1f2937;
+      position: relative;
+    }
+    .bar-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #22c55e, #eab308, #ef4444);
+      transition: width 0.4s ease;
+    }
+    .trigger {
+      font-size: 13px;
+      margin-top: 8px;
+      color: #9ca3af;
+    }
+    .log {
+      font-size: 12px;
+      color: #9ca3af;
+      max-height: 150px;
+      overflow-y: auto;
+      margin-top: 8px;
+      border-top: 1px solid #1f2937;
+      padding-top: 6px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: #020617;
+      border: 1px solid #374151;
+      font-size: 11px;
+      margin-right: 4px;
+      margin-top: 4px;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1f2937;
+      margin: 10px 0;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+    th, td {
+      font-size: 12px;
+      padding: 2px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1 style="color:#e5e7eb; margin-bottom:4px;">Cognitive Load & Cognitive Debt Detection – Full Prototype</h1>
+  <p style="color:#9ca3af; margin-top:0; margin-bottom:16px; font-size:13px;">
+    Interaction-based load is computed in JavaScript. Facial load is fetched from a Python server using MediaPipe FaceMesh.<br>
+    App switching is captured from a local Windows helper. <b>Final Score = 0.6 × Interaction Score + 0.4 × Facial Score</b>. Cognitive Debt accumulates excess load over time.
+  </p>
+
+  <div class="container">
+    <!-- LEFT: Interaction Area -->
+    <div class="card">
+      <div class="title">Interaction Simulator</div>
+      <div class="subtitle">Type, scroll, tap & switch app – this approximates real smartphone/PC behavior.</div>
+
+      <div style="margin-bottom:10px; font-size:13px;">
+        <b>Session Controls</b><br>
+        <button id="startSessionBtn">Start Session</button>
+        <button id="endSessionBtn" class="secondary">End Session</button>
+      </div>
+
+      <div style="margin-bottom:10px; font-size:13px;">
+        <label for="currentApp" style="color:#9ca3af;">Current App (logical category):</label><br>
+        <select id="currentApp" style="margin-top:4px; padding:4px; border-radius:6px; background:#020617; color:#e5e7eb; border:1px solid #374151;">
+          <option value="Browser">Browser</option>
+          <option value="Code Editor">Code Editor</option>
+          <option value="YouTube">YouTube</option>
+          <option value="WhatsApp">WhatsApp</option>
+          <option value="Instagram">Instagram</option>
+          <option value="Notes App">Notes App</option>
+        </select>
+      </div>
+
+      <label style="font-size:13px; color:#9ca3af;">Typing Area (simulates phone/PC input)</label>
+      <textarea id="typingArea" placeholder="Start typing here..."></textarea>
+
+      <div style="margin-top:10px;">
+        <button id="tapBtn">Tap (simulated touch/click)</button>
+        <button id="switchAppBtn" class="secondary">Manual Switch App</button>
+        <button id="resetBtn" class="secondary">Reset Metrics</button>
+      </div>
+
+      <div style="margin-top:14px; font-size:13px; color:#9ca3af;">
+        Scroll inside this box (simulates restless scrolling):
+      </div>
+      <div id="scrollBox" class="scroll-box">
+        <p>Scroll here to generate scroll events...</p>
+        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Mauris viverra, velit vel facilisis dapibus, lectus mi efficitur est, in tempus dui est at lectus.</p>
+        <p>Keep scrolling up and down to simulate restless behavior.</p>
+        <p>When users are anxious or overloaded, they often scroll quickly, switch apps, and tap randomly.</p>
+        <p>During focused work, scrolling is slower, typing is more stable, and app switching is low.</p>
+        <p>Use this box to simulate those patterns.</p>
+        <p>Line 7</p><p>Line 8</p><p>Line 9</p><p>Line 10</p>
+        <p>Line 11</p><p>Line 12</p><p>Line 13</p><p>Line 14</p>
+        <p>Line 15</p><p>Line 16</p><p>Line 17</p><p>Line 18</p>
+      </div>
+    </div>
+
+    <!-- RIGHT: Score & Metrics -->
+    <div class="card">
+      <div class="title">Cognitive Load & Debt (Fused)</div>
+      <div class="subtitle">
+        Facial score comes from Python (MediaPipe). App switching comes from OS helper. We fuse branches and accumulate Cognitive Debt and session statistics.
+      </div>
+
+      <p class="score-display" id="scoreDisplay">0</p>
+      <div id="stateBadge" class="state-badge state-calm">Calm</div>
+      <div class="small-score">
+        Interaction: <span id="interactionScoreLabel">0</span> &nbsp;|&nbsp;
+        Facial: <span id="facialScoreLabel">0</span> &nbsp;|&nbsp;
+        Debt: <span id="debtScoreLabel">0</span>
+      </div>
+      <div class="small-score">
+        Detected App (OS): <span id="detectedAppLabel">Unknown</span>
+      </div>
+
+      <div class="bar" id="barBackground"><div id="barFill" class="bar-fill"></div></div>
+
+      <div class="trigger" id="triggerText">Top interaction trigger: —</div>
+
+      <hr>
+
+      <div style="font-size:13px; color:#6b7280; margin-bottom:4px;">Current Window Metrics (approximate):</div>
+      <div class="metric-row"><span class="metric-label">Typing Speed (WPM)</span><span class="metric-value" id="mTyping">0</span></div>
+      <div class="metric-row"><span class="metric-label">Backspace Rate (/min)</span><span class="metric-value" id="mBackspace">0</span></div>
+      <div class="metric-row"><span class="metric-label">App Switch Rate (/min)</span><span class="metric-value" id="mAppSwitch">0</span></div>
+      <div class="metric-row"><span class="metric-label">Scroll Speed (avg)</span><span class="metric-value" id="mScroll">0</span></div>
+      <div class="metric-row"><span class="metric-label">Taps per Min</span><span class="metric-value" id="mTaps">0</span></div>
+      <div class="metric-row"><span class="metric-label">Session Duration (sec)</span><span class="metric-value" id="mSession">0</span></div>
+
+      <div style="margin-top:10px; font-size:12px;">
+        <span class="badge">Green = Calm</span>
+        <span class="badge">Yellow = Moderate</span>
+        <span class="badge">Red = High Load</span>
+      </div>
+
+      <div class="log" id="logBox"></div>
+
+      <hr>
+      <div style="font-size:13px; margin-top:6px; margin-bottom:4px;"><b>Session Reports</b></div>
+      <div id="sessionReport" class="log" style="max-height:220px;"></div>
+    </div>
+  </div>
+
+  <script>
+    // --- Sliding window config ---
+    const windowMs = 10000;
+    let keyEvents = [];
+    let backspaceEvents = [];
+    let scrollEvents = [];
+    let tapEvents = [];
+    let appSwitchEvents = [];
+    const sessionStart = Date.now();
+
+    // DOM elements
+    const typingArea = document.getElementById('typingArea');
+    const scrollBox = document.getElementById('scrollBox');
+    const tapBtn = document.getElementById('tapBtn');
+    const switchAppBtn = document.getElementById('switchAppBtn');
+    const resetBtn = document.getElementById('resetBtn');
+
+    const scoreDisplay = document.getElementById('scoreDisplay');
+    const stateBadge = document.getElementById('stateBadge');
+    const barFill = document.getElementById('barFill');
+    const barBackground = document.getElementById('barBackground');
+    const triggerText = document.getElementById('triggerText');
+    const logBox = document.getElementById('logBox');
+
+    const mTyping = document.getElementById('mTyping');
+    const mBackspace = document.getElementById('mBackspace');
+    const mAppSwitch = document.getElementById('mAppSwitch');
+    const mScroll = document.getElementById('mScroll');
+    const mTaps = document.getElementById('mTaps');
+    const mSession = document.getElementById('mSession');
+
+    const interactionScoreLabel = document.getElementById('interactionScoreLabel');
+    const facialScoreLabel = document.getElementById('facialScoreLabel');
+    const debtScoreLabel = document.getElementById('debtScoreLabel');
+    const detectedAppLabel = document.getElementById('detectedAppLabel');
+
+    const startSessionBtn = document.getElementById('startSessionBtn');
+    const endSessionBtn = document.getElementById('endSessionBtn');
+    const currentAppSelect = document.getElementById('currentApp');
+    const sessionReportDiv = document.getElementById('sessionReport');
+
+    // Session management
+    let currentSession = null; // { id, startedAt, samples: [] }
+    let allSessions = [];
+    let sessionCounter = 1;
+
+    // Cognitive Debt variables
+    let lastDebt = 0;
+    const baseline = 40;
+    const maxExcess = 100 - baseline;
+    const rho = 0.9;
+
+    // OS app tracking
+    let lastDetectedApp = "Unknown";
+
+    function now() { return Date.now(); }
+
+    function pruneOld(arr) {
+      const cutoff = now() - windowMs;
+      while (arr.length && arr[0].ts < cutoff) arr.shift();
+    }
+
+    // Event listeners
+    typingArea.addEventListener('keydown', e => {
+      const t = now();
+      if (e.key.length === 1) {
+        keyEvents.push({ ts: t });
+      } else if (e.key === 'Backspace') {
+        backspaceEvents.push({ ts: t });
+      }
+    });
+
+    scrollBox.addEventListener('scroll', e => {
+      const t = now();
+      const pos = e.target.scrollTop;
+      let last = scrollEvents.length ? scrollEvents[scrollEvents.length - 1].pos : pos;
+      let delta = Math.abs(pos - last);
+      scrollEvents.push({ ts: t, delta: delta, pos: pos });
+    });
+
+    tapBtn.addEventListener('click', () => {
+      tapEvents.push({ ts: now() });
+    });
+
+    switchAppBtn.addEventListener('click', () => {
+      appSwitchEvents.push({ ts: now() });
+    });
+
+    resetBtn.addEventListener('click', () => {
+      keyEvents = [];
+      backspaceEvents = [];
+      scrollEvents = [];
+      tapEvents = [];
+      appSwitchEvents = [];
+      typingArea.value = "";
+      logBox.innerHTML = "";
+      lastDebt = 0;
+    });
+
+    startSessionBtn.addEventListener('click', () => {
+      if (currentSession) {
+        alert("A session is already running.");
+        return;
+      }
+      currentSession = {
+        id: sessionCounter++,
+        startedAt: new Date(),
+        samples: [] // {t, appCategory, osApp, fused, interaction, facial}
+      };
+      sessionReportDiv.innerHTML = "";
+      const d = currentSession.startedAt.toLocaleTimeString();
+      const info = document.createElement('div');
+      info.textContent = `Session #${currentSession.id} started at ${d}`;
+      sessionReportDiv.appendChild(info);
+    });
+
+    endSessionBtn.addEventListener('click', () => {
+      if (!currentSession) {
+        alert("No active session.");
+        return;
+      }
+      currentSession.endedAt = new Date();
+      allSessions.push(currentSession);
+      generateSessionReport(currentSession);
+      currentSession = null;
+    });
+
+    function computeMetrics() {
+      pruneOld(keyEvents);
+      pruneOld(backspaceEvents);
+      pruneOld(scrollEvents);
+      pruneOld(tapEvents);
+      pruneOld(appSwitchEvents);
+
+      const windowSec = windowMs / 1000;
+
+      const chars = keyEvents.length;
+      const words = chars / 5;
+      const typingSpeed = (words / windowSec) * 60;
+
+      const backspaceRate = backspaceEvents.length * (60 / windowSec);
+      const appSwitchRate = appSwitchEvents.length * (60 / windowSec);
+      const tapsPerMin = tapEvents.length * (60 / windowSec);
+
+      let scrollSpeed = 0;
+      if (scrollEvents.length > 0) {
+        const avgDelta = scrollEvents.reduce((sum, e) => sum + e.delta, 0) / scrollEvents.length;
+        scrollSpeed = avgDelta;
+      }
+
+      const sessionDuration = (now() - sessionStart) / 1000;
+
+      return {
+        typingSpeed,
+        backspaceRate,
+        appSwitchRate,
+        scrollSpeed,
+        tapsPerMin,
+        sessionDuration
+      };
+    }
+
+    function normalizeSubscores(m) {
+      const highAppSwitch = Math.min(1, (m.appSwitchRate / 10));
+      const lowTypingSpeed = Math.min(1, Math.max(0, (1 - (m.typingSpeed - 10) / (80 - 10))));
+      const scrollVelocity = Math.min(1, (m.scrollSpeed / 50));
+      const backspaceBursts = Math.min(1, (m.backspaceRate / 30));
+      const touchChaos = Math.min(1, (m.tapsPerMin / 300));
+      const shortSessions = m.sessionDuration >= 60 ? 0 : (1 - m.sessionDuration / 60);
+
+      return {
+        highAppSwitch,
+        lowTypingSpeed,
+        scrollVelocity,
+        backspaceBursts,
+        touchChaos,
+        shortSessions
+      };
+    }
+
+    function computeInteractionScore(m) {
+      const s = normalizeSubscores(m);
+      const cli =
+        0.25 * s.highAppSwitch +
+        0.20 * s.lowTypingSpeed +
+        0.20 * s.scrollVelocity +
+        0.15 * s.backspaceBursts +
+        0.10 * s.touchChaos +
+        0.10 * s.shortSessions;
+
+      const score = cli * 100;
+
+      const entries = Object.entries(s);
+      const topTrigger = entries.reduce((a, b) => (b[1] > a[1] ? b : a))[0];
+
+      return {
+        interactionScore: Math.round(score),
+        subscores: s,
+        topTrigger
+      };
+    }
+
+    function humanTriggerName(key) {
+      switch (key) {
+        case "highAppSwitch": return "Excessive app switching";
+        case "lowTypingSpeed": return "Typing slowdown";
+        case "scrollVelocity": return "Fast / restless scrolling";
+        case "backspaceBursts": return "High correction / backspaces";
+        case "touchChaos": return "Chaotic tapping";
+        case "shortSessions": return "Fragmented short sessions";
+        default: return key;
+      }
+    }
+
+    async function fetchFacialScore() {
+      try {
+        const res = await fetch("http://127.0.0.1:5000/facial_score");
+        const j = await res.json();
+        return j.facial_score || 0;
+      } catch (e) {
+        console.warn("Could not reach facial server, defaulting facial_score=0");
+        return 0;
+      }
+    }
+
+    function updateDebt(fused) {
+      let excess = fused - baseline;
+      if (excess < 0) excess = 0;
+      let normalizedExcess = excess / maxExcess;
+      if (normalizedExcess < 0) normalizedExcess = 0;
+      if (normalizedExcess > 1) normalizedExcess = 1;
+
+      lastDebt = rho * lastDebt + (1 - rho) * (normalizedExcess * 100);
+      return Math.round(lastDebt);
+    }
+
+    function generateSessionReport(session) {
+      sessionReportDiv.innerHTML = "";
+
+      const startStr = session.startedAt.toLocaleTimeString();
+      const endStr = session.endedAt ? session.endedAt.toLocaleTimeString() : "—";
+      const header = document.createElement('div');
+      header.innerHTML = `<b>Session #${session.id}</b> (${startStr} – ${endStr})`;
+      sessionReportDiv.appendChild(header);
+
+      if (!session.samples.length) {
+        const msg = document.createElement('div');
+        msg.textContent = "No samples recorded in this session.";
+        sessionReportDiv.appendChild(msg);
+        return;
+      }
+
+      const appStats = {};
+      session.samples.forEach(s => {
+        const key = s.appCategory + " | " + (s.osApp || "Unknown");
+        if (!appStats[key]) {
+          appStats[key] = { count: 0, sumLoad: 0, maxLoad: 0 };
+        }
+        const st = appStats[key];
+        st.count += 1;
+        st.sumLoad += s.fused;
+        if (s.fused > st.maxLoad) st.maxLoad = s.fused;
+      });
+
+      const sampleIntervalSec = 2;
+
+      const table = document.createElement('table');
+      const thead = document.createElement('thead');
+      thead.innerHTML = `
+        <tr>
+          <th style="border-bottom:1px solid #374151; text-align:left;">Logical | OS App</th>
+          <th style="border-bottom:1px solid #374151; text-align:right;">Duration (sec)</th>
+          <th style="border-bottom:1px solid #374151; text-align:right;">Samples</th>
+          <th style="border-bottom:1px solid #374151; text-align:right;">Avg Load</th>
+          <th style="border-bottom:1px solid #374151; text-align:right;">Max Load</th>
+        </tr>
+      `;
+      table.appendChild(thead);
+
+      const tbody = document.createElement('tbody');
+
+      Object.entries(appStats).forEach(([appKey, st]) => {
+        const avgLoad = st.sumLoad / st.count;
+        const durationSec = st.count * sampleIntervalSec;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${appKey}</td>
+          <td style="text-align:right;">${durationSec.toFixed(0)}</td>
+          <td style="text-align:right;">${st.count}</td>
+          <td style="text-align:right;">${avgLoad.toFixed(1)}</td>
+          <td style="text-align:right;">${st.maxLoad.toFixed(1)}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      table.appendChild(tbody);
+      sessionReportDiv.appendChild(table);
+
+      const overall = document.createElement('div');
+      overall.style.marginTop = "6px";
+      const allLoads = session.samples.map(s => s.fused);
+      const avgSessionLoad = allLoads.reduce((a, b) => a + b, 0) / allLoads.length;
+      const maxSessionLoad = Math.max(...allLoads);
+      overall.textContent =
+        `Session Avg Load: ${avgSessionLoad.toFixed(1)} | Peak Load: ${maxSessionLoad.toFixed(1)}`;
+      sessionReportDiv.appendChild(overall);
+    }
+
+    async function pollCurrentOSApp() {
+      try {
+        const res = await fetch("http://127.0.0.1:5001/current_app");
+        const j = await res.json();
+        const appName = j.app_name || "Unknown";
+
+        detectedAppLabel.textContent = appName;
+
+        // If app changed (and not first run), count as app switch + update dropdown mapping
+        if (appName !== lastDetectedApp && lastDetectedApp !== "Unknown") {
+          appSwitchEvents.push({ ts: now() });
+
+          let mapped = "Browser";
+          const lower = appName.toLowerCase();
+          if (lower.includes("chrome") || lower.includes("edge") || lower.includes("firefox")) {
+            mapped = "Browser";
+          } else if (lower.includes("code") || lower.includes("studio")) {
+            mapped = "Code Editor";
+          } else if (lower.includes("whatsapp")) {
+            mapped = "WhatsApp";
+          } else if (lower.includes("instagram")) {
+            mapped = "Instagram";
+          } else if (lower.includes("vlc") || lower.includes("media") || lower.includes("player")) {
+            mapped = "YouTube";
+          } else if (lower.includes("notepad") || lower.includes("word") || lower.includes("note")) {
+            mapped = "Notes App";
+          }
+          currentAppSelect.value = mapped;
+        }
+
+        lastDetectedApp = appName;
+      } catch (e) {
+        detectedAppLabel.textContent = "Unknown (helper not running)";
+      }
+    }
+
+    async function updateUI() {
+      const m = computeMetrics();
+      const rInt = computeInteractionScore(m);
+      const interactionScore = rInt.interactionScore;
+
+      const facialScore = await fetchFacialScore();
+
+      const fused = Math.round(0.6 * interactionScore + 0.4 * facialScore);
+      const debtScore = updateDebt(fused);
+
+      let state, cls;
+      if (fused <= 30) {
+        state = "Calm";
+        cls = "state-calm";
+      } else if (fused <= 60) {
+        state = "Moderate Load";
+        cls = "state-moderate";
+      } else {
+        state = "High Load";
+        cls = "state-high";
+      }
+
+      scoreDisplay.textContent = fused;
+      barFill.style.width = fused + "%";
+      stateBadge.textContent = state;
+      stateBadge.className = "state-badge " + cls;
+
+      triggerText.textContent = "Top interaction trigger: " + humanTriggerName(rInt.topTrigger);
+
+      interactionScoreLabel.textContent = interactionScore;
+      facialScoreLabel.textContent = facialScore;
+      debtScoreLabel.textContent = debtScore;
+
+      mTyping.textContent = m.typingSpeed.toFixed(1);
+      mBackspace.textContent = m.backspaceRate.toFixed(1);
+      mAppSwitch.textContent = m.appSwitchRate.toFixed(1);
+      mScroll.textContent = m.scrollSpeed.toFixed(1);
+      mTaps.textContent = m.tapsPerMin.toFixed(1);
+      mSession.textContent = m.sessionDuration.toFixed(1);
+
+      const timeStr = new Date().toLocaleTimeString();
+      const logLine =
+        `[${timeStr}] Fused=${fused} (${state}), Interaction=${interactionScore}, ` +
+        `Facial=${facialScore}, Debt=${debtScore}, TopTrigger=${humanTriggerName(rInt.topTrigger)}, OSApp=${lastDetectedApp}`;
+      const div = document.createElement('div');
+      div.textContent = logLine;
+      logBox.prepend(div);
+      while (logBox.childNodes.length > 25) {
+        logBox.removeChild(logBox.lastChild);
+      }
+
+      if (currentSession) {
+        currentSession.samples.push({
+          t: new Date(),
+          appCategory: currentAppSelect.value,
+          osApp: lastDetectedApp,
+          fused: fused,
+          interaction: interactionScore,
+          facial: facialScore
+        });
+      }
+    }
+
+    // Periodic updates
+    setInterval(updateUI, 2000);
+    setInterval(pollCurrentOSApp, 2000);
+  </script>
+</body>
+</html>
